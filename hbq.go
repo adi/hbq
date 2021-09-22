@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"reflect"
+	"strings"
 	"unicode"
 )
 
@@ -38,11 +39,28 @@ func HttpBuildQueryRecursive(path string, params url.Values, obj interface{}) {
 		for fi := 0; fi < vobj.NumField(); fi++ {
 			key := iobj.Type().Field(fi).Name
 			tag := iobj.Type().Field(fi).Tag.Get("json")
+			skip := false
+			field := vobj.Field(fi)
+			if !field.CanInterface() {
+				skip = true
+			}
 			if tag == "" {
 				tag = ToSnakeCase(key)
+			} else {
+				tagParts := strings.Split(tag, ",")
+				if len(tagParts) > 1 {
+					for i := 1; i < len(tagParts); i++ {
+						if tagParts[i] == "omitempty" {
+							skip = true
+						}
+					}
+					tag = tagParts[0]
+				}
+				if tag == "-" {
+					skip = true
+				}
 			}
-			field := vobj.Field(fi)
-			if field.CanInterface() {
+			if !skip {
 				val := field.Interface()
 				if len(path) > 0 {
 					HttpBuildQueryRecursive(path+"["+tag+"]", params, val)
