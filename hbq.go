@@ -38,34 +38,33 @@ func HttpBuildQueryRecursive(path string, params url.Values, obj interface{}) {
 		iobj := reflect.Indirect(vobj)
 		for fi := 0; fi < vobj.NumField(); fi++ {
 			key := iobj.Type().Field(fi).Name
-			tag := iobj.Type().Field(fi).Tag.Get("json")
+			tag := iobj.Type().Field(fi).Tag.Get("hbq")
 			skip := false
 			field := vobj.Field(fi)
-			if !field.CanInterface() {
-				skip = true
-			}
-			if tag == "" {
-				tag = ToSnakeCase(key)
-			} else {
-				tagParts := strings.Split(tag, ",")
-				if len(tagParts) > 1 {
-					for i := 1; i < len(tagParts); i++ {
-						if tagParts[i] == "omitempty" {
-							skip = true
-						}
-					}
-					tag = tagParts[0]
-				}
-				if tag == "-" {
-					skip = true
-				}
-			}
-			if !skip {
-				val := field.Interface()
-				if len(path) > 0 {
-					HttpBuildQueryRecursive(path+"["+tag+"]", params, val)
+			if field.CanInterface() {
+				if tag == "" {
+					tag = ToSnakeCase(key)
 				} else {
-					HttpBuildQueryRecursive(tag, params, val)
+					tagParts := strings.Split(tag, ",")
+					if len(tagParts) > 1 {
+						for i := 1; i < len(tagParts); i++ {
+							if tagParts[i] == "omitempty" && field.IsZero() {
+								skip = true
+							}
+						}
+						tag = tagParts[0]
+					}
+					if tag == "-" {
+						skip = true
+					}
+				}
+				if !skip {
+					val := field.Interface()
+					if len(path) > 0 {
+						HttpBuildQueryRecursive(path+"["+tag+"]", params, val)
+					} else {
+						HttpBuildQueryRecursive(tag, params, val)
+					}
 				}
 			}
 		}
